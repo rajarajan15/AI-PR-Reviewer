@@ -1,0 +1,985 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI PR Reviewer</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      background: #f8f9fa;
+      color: #1a1a1a;
+      line-height: 1.6;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    header {
+      background: white;
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 20px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    h1 {
+      font-size: 24px;
+      font-weight: 600;
+      color: #1a1a1a;
+    }
+
+    .user-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .user-badge {
+      background: #f0f0f0;
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-size: 14px;
+    }
+
+    .btn {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+
+    .btn-primary {
+      background: #0066ff;
+      color: white;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      background: #0052cc;
+    }
+
+    .btn-secondary {
+      background: #f0f0f0;
+      color: #1a1a1a;
+    }
+
+    .btn-secondary:hover:not(:disabled) {
+      background: #e0e0e0;
+    }
+
+    .btn-danger {
+      background: #ff4444;
+      color: white;
+    }
+
+    .btn-danger:hover:not(:disabled) {
+      background: #cc0000;
+    }
+
+    .btn-success {
+      background: #00aa44;
+      color: white;
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .auth-form {
+      background: white;
+      border-radius: 12px;
+      padding: 32px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      max-width: 400px;
+      margin: 40px auto;
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 14px;
+      font-weight: 500;
+      color: #666;
+    }
+
+    input, textarea {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      font-size: 14px;
+      transition: border-color 0.2s;
+      font-family: inherit;
+    }
+
+    input:focus, textarea:focus {
+      outline: none;
+      border-color: #0066ff;
+    }
+
+    .main-content {
+      display: grid;
+      grid-template-columns: 1fr 350px;
+      gap: 20px;
+    }
+
+    .review-panel, .history-panel {
+      background: white;
+      border-radius: 12px;
+      padding: 24px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    .review-actions {
+      display: flex;
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .loading {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 40px;
+      color: #666;
+    }
+
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid #f0f0f0;
+      border-top: 3px solid #0066ff;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-bottom: 16px;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .review-result {
+      margin-top: 24px;
+    }
+
+    .review-section {
+      margin-bottom: 24px;
+      padding: 20px;
+      background: #f8f9fa;
+      border-radius: 8px;
+      border-left: 4px solid #0066ff;
+    }
+
+    .review-section h3 {
+      font-size: 16px;
+      margin-bottom: 16px;
+      color: #1a1a1a;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .review-item {
+      padding: 12px 16px;
+      margin-bottom: 8px;
+      background: white;
+      border-radius: 6px;
+      border-left: 3px solid #e0e0e0;
+      line-height: 1.6;
+      color: #333;
+      position: relative;
+    }
+
+    .review-item-content {
+      padding-left: 16px;
+      position: relative;
+    }
+
+    .review-item-content:before {
+      content: "•";
+      position: absolute;
+      left: 0;
+      color: #0066ff;
+      font-weight: bold;
+    }
+
+    .review-item-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid #f0f0f0;
+    }
+
+    .review-item-actions button {
+      font-size: 12px;
+      padding: 4px 12px;
+    }
+
+    .inline-comment-badge {
+      display: inline-block;
+      background: #e8f5e9;
+      color: #2e7d32;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 11px;
+      margin-left: 8px;
+    }
+
+    .chat-container {
+      margin-top: 24px;
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      border: 1px solid #e0e0e0;
+    }
+
+    .chat-messages {
+      max-height: 400px;
+      overflow-y: auto;
+      margin-bottom: 16px;
+      padding: 12px;
+      background: #f8f9fa;
+      border-radius: 8px;
+    }
+
+    .chat-message {
+      margin-bottom: 12px;
+      padding: 12px;
+      border-radius: 8px;
+      max-width: 80%;
+    }
+
+    .chat-message.user {
+      background: #0066ff;
+      color: white;
+      margin-left: auto;
+    }
+
+    .chat-message.ai {
+      background: white;
+      border: 1px solid #e0e0e0;
+    }
+
+    .chat-input-container {
+      display: flex;
+      gap: 8px;
+    }
+
+    .chat-input-container textarea {
+      flex: 1;
+      min-height: 60px;
+      resize: vertical;
+    }
+
+    .file-changes {
+      margin-top: 24px;
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      border: 1px solid #e0e0e0;
+    }
+
+    .file-item {
+      padding: 12px;
+      background: #f8f9fa;
+      border-radius: 8px;
+      margin-bottom: 12px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .file-item:hover {
+      background: #e8e9ea;
+    }
+
+    .file-header {
+      font-weight: 500;
+      margin-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .file-stats {
+      font-size: 12px;
+      color: #666;
+    }
+
+    .additions {
+      color: #00aa44;
+    }
+
+    .deletions {
+      color: #ff4444;
+    }
+
+    .diff-view {
+      background: #282c34;
+      color: #abb2bf;
+      padding: 16px;
+      border-radius: 8px;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      overflow-x: auto;
+      margin-top: 12px;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+
+    .diff-line {
+      padding: 2px 8px;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+
+    .diff-line.addition {
+      background: rgba(0, 170, 68, 0.2);
+      color: #a8ff60;
+    }
+
+    .diff-line.deletion {
+      background: rgba(255, 68, 68, 0.2);
+      color: #ff6c6b;
+    }
+
+    .diff-line:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .comment-on-line {
+      float: right;
+      font-size: 11px;
+      padding: 2px 8px;
+      background: rgba(0, 102, 255, 0.2);
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .alert {
+      padding: 12px;
+      border-radius: 8px;
+      margin-bottom: 16px;
+    }
+
+    .alert-error {
+      background: #ffebee;
+      color: #c62828;
+      border: 1px solid #ef9a9a;
+    }
+
+    .alert-success {
+      background: #e8f5e9;
+      color: #2e7d32;
+      border: 1px solid #81c784;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    .history-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .history-item {
+      padding: 12px;
+      background: #f8f9fa;
+      border-radius: 8px;
+      margin-bottom: 12px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .history-item:hover {
+      background: #e8e9ea;
+    }
+
+    .history-item-header {
+      font-weight: 500;
+      font-size: 14px;
+      margin-bottom: 4px;
+    }
+
+    .history-item-meta {
+      font-size: 12px;
+      color: #666;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 40px;
+      color: #999;
+    }
+
+    @media (max-width: 768px) {
+      .main-content {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Login/Register View -->
+    <div id="authView">
+      <div class="auth-form">
+        <h1 style="margin-bottom: 24px; text-align: center;">AI PR Reviewer</h1>
+        
+        <div id="loginForm">
+          <h2 style="font-size: 18px; margin-bottom: 16px;">Login</h2>
+          <div class="form-group">
+            <label>Email</label>
+            <input type="email" id="loginEmail" placeholder="demo@example.com" value="demo@example.com">
+          </div>
+          <div class="form-group">
+            <label>Password</label>
+            <input type="password" id="loginPassword" placeholder="Enter password" value="demo123">
+          </div>
+          <button class="btn btn-primary" style="width: 100%; margin-bottom: 12px;" onclick="login()">Login</button>
+          <p style="text-align: center; font-size: 14px; color: #666;">
+            Don't have an account? <a href="#" onclick="showRegister(); return false;" style="color: #0066ff;">Register</a>
+          </p>
+          <div id="loginError"></div>
+        </div>
+
+        <div id="registerForm" class="hidden">
+          <h2 style="font-size: 18px; margin-bottom: 16px;">Register</h2>
+          <div class="form-group">
+            <label>Name</label>
+            <input type="text" id="registerName" placeholder="Your name">
+          </div>
+          <div class="form-group">
+            <label>Email</label>
+            <input type="email" id="registerEmail" placeholder="your@email.com">
+          </div>
+          <div class="form-group">
+            <label>Password</label>
+            <input type="password" id="registerPassword" placeholder="Choose password">
+          </div>
+          <button class="btn btn-primary" style="width: 100%; margin-bottom: 12px;" onclick="register()">Register</button>
+          <p style="text-align: center; font-size: 14px; color: #666;">
+            Already have an account? <a href="#" onclick="showLogin(); return false;" style="color: #0066ff;">Login</a>
+          </p>
+          <div id="registerError"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main App View -->
+    <div id="appView" class="hidden">
+      <header>
+        <h1>AI PR Reviewer</h1>
+        <div class="user-info">
+          <span class="user-badge" id="userName"></span>
+          <button class="btn btn-secondary" onclick="logout()">Logout</button>
+        </div>
+      </header>
+
+      <div class="main-content">
+        <!-- Review Panel -->
+        <div class="review-panel">
+          <h2 style="font-size: 20px; margin-bottom: 20px;">Review Pull Request</h2>
+          
+          <div class="form-group">
+            <label>GitHub Owner</label>
+            <input type="text" id="owner" placeholder="e.g., facebook">
+          </div>
+          <div class="form-group">
+            <label>Repository</label>
+            <input type="text" id="repo" placeholder="e.g., react">
+          </div>
+          <div class="form-group">
+            <label>PR Number</label>
+            <input type="number" id="pr" placeholder="e.g., 123">
+          </div>
+
+          <div class="review-actions">
+            <button class="btn btn-primary" onclick="reviewPR()" id="reviewBtn">Analyze PR</button>
+            <button class="btn btn-secondary" onclick="clearForm()">Clear</button>
+          </div>
+
+          <div id="reviewLoading" class="loading hidden">
+            <div class="spinner"></div>
+            <p>Analyzing pull request...</p>
+          </div>
+
+          <div id="reviewResult" class="review-result hidden"></div>
+          
+          <!-- File Changes Section -->
+          <div id="fileChanges" class="file-changes hidden"></div>
+
+          <!-- Chat Interface -->
+          <div id="chatContainer" class="chat-container hidden">
+            <h3 style="margin-bottom: 12px;">Ask AI About This Review</h3>
+            <div id="chatMessages" class="chat-messages"></div>
+            <div class="chat-input-container">
+              <textarea id="chatInput" placeholder="Ask questions like 'Why this suggestion?', 'Show me test ideas for login function'..."></textarea>
+              <button class="btn btn-primary" onclick="sendChatMessage()">Send</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- History Panel -->
+        <div class="history-panel">
+          <div class="history-header">
+            <h2>Review History</h2>
+            <button class="btn btn-danger" onclick="clearHistory()" style="font-size: 12px; padding: 6px 12px;">Clear All</button>
+          </div>
+          <div id="historyList"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentUser = null;
+    let currentReview = null;
+    let currentFiles = null;
+    let chatHistory = [];
+
+    window.onload = async () => {
+      const res = await fetch("/api/auth/session");
+      const data = await res.json();
+      if (data.authenticated) {
+        currentUser = data.user;
+        showApp();
+        loadHistory();
+      }
+    };
+
+    function showRegister() {
+      document.getElementById("loginForm").classList.add("hidden");
+      document.getElementById("registerForm").classList.remove("hidden");
+    }
+
+    function showLogin() {
+      document.getElementById("registerForm").classList.add("hidden");
+      document.getElementById("loginForm").classList.remove("hidden");
+    }
+
+    async function login() {
+      const email = document.getElementById("loginEmail").value;
+      const password = document.getElementById("loginPassword").value;
+
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password })
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        currentUser = data.user;
+        showApp();
+        loadHistory();
+      } else {
+        document.getElementById("loginError").innerHTML = 
+          `<div class="alert alert-error" style="margin-top: 12px;">${data.error}</div>`;
+      }
+    }
+
+    async function register() {
+      const name = document.getElementById("registerName").value;
+      const email = document.getElementById("registerEmail").value;
+      const password = document.getElementById("registerPassword").value;
+
+      const res = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, email, password })
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        currentUser = data.user;
+        showApp();
+        loadHistory();
+      } else {
+        document.getElementById("registerError").innerHTML = 
+          `<div class="alert alert-error" style="margin-top: 12px;">${data.error}</div>`;
+      }
+    }
+
+    async function logout() {
+      await fetch("/api/auth/logout", { method: "POST" });
+      currentUser = null;
+      document.getElementById("authView").classList.remove("hidden");
+      document.getElementById("appView").classList.add("hidden");
+    }
+
+    function showApp() {
+      document.getElementById("authView").classList.add("hidden");
+      document.getElementById("appView").classList.remove("hidden");
+      document.getElementById("userName").textContent = currentUser.name;
+    }
+
+    async function reviewPR() {
+      const owner = document.getElementById("owner").value;
+      const repo = document.getElementById("repo").value;
+      const prNumber = document.getElementById("pr").value;
+
+      if (!owner || !repo || !prNumber) {
+        alert("Please fill in all fields");
+        return;
+      }
+
+      document.getElementById("reviewLoading").classList.remove("hidden");
+      document.getElementById("reviewResult").classList.add("hidden");
+      document.getElementById("fileChanges").classList.add("hidden");
+      document.getElementById("chatContainer").classList.add("hidden");
+      document.getElementById("reviewBtn").disabled = true;
+      chatHistory = [];
+
+      try {
+        const res = await fetch("/api/review", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ owner, repo, prNumber })
+        });
+
+        const data = await res.json();
+        
+        if (data.error) {
+          throw new Error(data.error);
+        }
+
+        currentReview = { owner, repo, prNumber, review: data.review };
+        currentFiles = data.files;
+        displayReview(data.review);
+        displayFiles(data.files);
+        document.getElementById("chatContainer").classList.remove("hidden");
+        loadHistory();
+      } catch (err) {
+        document.getElementById("reviewResult").innerHTML = 
+          `<div class="alert alert-error">${err.message}</div>`;
+        document.getElementById("reviewResult").classList.remove("hidden");
+      } finally {
+        document.getElementById("reviewLoading").classList.add("hidden");
+        document.getElementById("reviewBtn").disabled = false;
+      }
+    }
+
+    function displayReview(review) {
+      const container = document.getElementById("reviewResult");
+      
+      let html = '<div class="review-section"><h3>📝 Summary</h3><p>' + 
+        (review.summary || 'No summary available') + '</p></div>';
+
+      // Issues
+      html += '<div class="review-section"><h3>⚠️ Potential Issues</h3>';
+      if (review.issues && review.issues.length > 0) {
+        review.issues.forEach((issue, idx) => {
+          html += `<div class="review-item">
+            <div class="review-item-content">${escapeHtml(issue.text || issue)}</div>
+            <div class="review-item-actions">
+              <button class="btn btn-success" onclick="postInlineComment(${idx}, 'issues', 'accept')">✓ Accept</button>
+              <button class="btn btn-danger" onclick="postInlineComment(${idx}, 'issues', 'reject')">✗ Reject</button>
+              <button class="btn btn-secondary" onclick="postInlineComment(${idx}, 'issues', 'comment')">💬 Comment</button>
+            </div>
+          </div>`;
+        });
+      } else {
+        html += '<p style="color: #999; font-style: italic;">No issues found</p>';
+      }
+      html += '</div>';
+
+      // Suggestions
+      html += '<div class="review-section"><h3>💡 Suggestions</h3>';
+      if (review.suggestions && review.suggestions.length > 0) {
+        review.suggestions.forEach((sugg, idx) => {
+          html += `<div class="review-item">
+            <div class="review-item-content">${escapeHtml(sugg.text || sugg)}</div>
+            <div class="review-item-actions">
+              <button class="btn btn-success" onclick="postInlineComment(${idx}, 'suggestions', 'accept')">✓ Accept</button>
+              <button class="btn btn-danger" onclick="postInlineComment(${idx}, 'suggestions', 'reject')">✗ Reject</button>
+              <button class="btn btn-secondary" onclick="postInlineComment(${idx}, 'suggestions', 'comment')">💬 Comment</button>
+            </div>
+          </div>`;
+        });
+      } else {
+        html += '<p style="color: #999; font-style: italic;">No suggestions</p>';
+      }
+      html += '</div>';
+
+      // Test Cases
+      html += '<div class="review-section"><h3>🧪 Test Cases</h3>';
+      if (review.testCases && review.testCases.length > 0) {
+        review.testCases.forEach((test, idx) => {
+          html += `<div class="review-item">
+            <div class="review-item-content">${escapeHtml(test.text || test)}</div>
+            <div class="review-item-actions">
+              <button class="btn btn-success" onclick="postInlineComment(${idx}, 'testCases', 'accept')">✓ Accept</button>
+              <button class="btn btn-danger" onclick="postInlineComment(${idx}, 'testCases', 'reject')">✗ Reject</button>
+              <button class="btn btn-secondary" onclick="postInlineComment(${idx}, 'testCases', 'comment')">💬 Comment</button>
+            </div>
+          </div>`;
+        });
+      } else {
+        html += '<p style="color: #999; font-style: italic;">No test cases suggested</p>';
+      }
+      html += '</div>';
+
+      container.innerHTML = html;
+      container.classList.remove("hidden");
+    }
+
+    function displayFiles(files) {
+      const container = document.getElementById("fileChanges");
+      if (!files || files.length === 0) return;
+
+      let html = '<h3 style="margin-bottom: 12px;">📁 Changed Files</h3>';
+      files.forEach((file, idx) => {
+        html += `
+          <div class="file-item" onclick="toggleFileDiff(${idx})">
+            <div class="file-header">
+              <span>${file.filename}</span>
+              <span class="file-stats">
+                <span class="additions">+${file.additions}</span>
+                <span class="deletions">-${file.deletions}</span>
+              </span>
+            </div>
+            <div id="diff-${idx}" class="diff-view hidden"></div>
+          </div>
+        `;
+      });
+
+      container.innerHTML = html;
+      container.classList.remove("hidden");
+    }
+
+    function toggleFileDiff(idx) {
+      const diffEl = document.getElementById(`diff-${idx}`);
+      if (diffEl.classList.contains('hidden')) {
+        const file = currentFiles[idx];
+        if (file.patch) {
+          const lines = file.patch.split('\n');
+          let html = '';
+          lines.forEach((line, lineIdx) => {
+            let className = 'diff-line';
+            if (line.startsWith('+')) className += ' addition';
+            else if (line.startsWith('-')) className += ' deletion';
+            
+            html += `<div class="${className}" data-file-idx="${idx}" data-line="${lineIdx}">
+              ${escapeHtml(line)}
+              <span class="comment-on-line" onclick="commentOnLine(${idx}, ${lineIdx}, event)">💬</span>
+            </div>`;
+          });
+          diffEl.innerHTML = html;
+        } else {
+          diffEl.innerHTML = '<p style="color: #999;">No diff available</p>';
+        }
+        diffEl.classList.remove('hidden');
+      } else {
+        diffEl.classList.add('hidden');
+      }
+    }
+
+    async function commentOnLine(fileIdx, lineNum, event) {
+      event.stopPropagation();
+      const file = currentFiles[fileIdx];
+      const comment = prompt('Enter your inline comment:');
+      if (!comment) return;
+
+      try {
+        const res = await fetch("/api/feedback/inline", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            owner: currentReview.owner,
+            repo: currentReview.repo,
+            prNumber: currentReview.prNumber,
+            filename: file.filename,
+            comment,
+            line: lineNum
+          })
+        });
+
+        const data = await res.json();
+        if (data.success) {
+          alert("Comment posted to GitHub successfully!");
+        } else {
+          alert("Error: " + data.error);
+        }
+      } catch (err) {
+        alert("Error posting comment: " + err.message);
+      }
+    }
+
+    async function postInlineComment(idx, section, action) {
+      if (!currentReview) return;
+
+      const item = currentReview.review[section][idx];
+      const text = item.text || item;
+      
+      const comment = prompt(`Enter your ${action} comment for this ${section.slice(0, -1)}:`);
+      if (!comment) return;
+
+      let body = comment;
+      if (action === 'accept') {
+        body = `✅ **Accepted**: ${text}\n\n${comment}`;
+      } else if (action === 'reject') {
+        body = `❌ **Rejected**: ${text}\n\n${comment}`;
+      } else {
+        body = `💬 **Comment on**: ${text}\n\n${comment}`;
+      }
+
+      try {
+        const res = await fetch("/api/feedback", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            owner: currentReview.owner,
+            repo: currentReview.repo,
+            prNumber: currentReview.prNumber,
+            comment: body,
+            action
+          })
+        });
+
+        const data = await res.json();
+        if (data.success) {
+          alert("Feedback posted to GitHub successfully!");
+        } else {
+          alert("Error: " + data.error);
+        }
+      } catch (err) {
+        alert("Error posting feedback: " + err.message);
+      }
+    }
+
+    async function sendChatMessage() {
+      const input = document.getElementById("chatInput");
+      const message = input.value.trim();
+      if (!message) return;
+
+      addChatMessage(message, 'user');
+      input.value = '';
+
+      try {
+        const res = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            message,
+            context: {
+              owner: currentReview.owner,
+              repo: currentReview.repo,
+              prNumber: currentReview.prNumber,
+              review: currentReview.review
+            },
+            history: chatHistory
+          })
+        });
+
+        const data = await res.json();
+        if (data.response) {
+          addChatMessage(data.response, 'ai');
+          chatHistory.push({ user: message, ai: data.response });
+        }
+      } catch (err) {
+        addChatMessage("Error: " + err.message, 'ai');
+      }
+    }
+
+    function addChatMessage(text, type) {
+      const container = document.getElementById("chatMessages");
+      const msgDiv = document.createElement('div');
+      msgDiv.className = `chat-message ${type}`;
+      msgDiv.textContent = text;
+      container.appendChild(msgDiv);
+      container.scrollTop = container.scrollHeight;
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    async function loadHistory() {
+      const res = await fetch("/api/history");
+      const data = await res.json();
+      
+      const container = document.getElementById("historyList");
+
+      if (data.history.length === 0) {
+        container.innerHTML = '<div class="empty-state">No reviews yet</div>';
+        return;
+      }
+
+      container.innerHTML = data.history.map(item => `
+        <div class="history-item" onclick='loadReview(${JSON.stringify(item).replace(/'/g, "&apos;")})'>
+          <div class="history-item-header">
+            ${item.owner}/${item.repo} #${item.prNumber}
+          </div>
+          <div class="history-item-meta">
+            ${new Date(item.timestamp).toLocaleString()}
+          </div>
+        </div>
+      `).join("");
+    }
+
+    function loadReview(item) {
+      document.getElementById("owner").value = item.owner;
+      document.getElementById("repo").value = item.repo;
+      document.getElementById("pr").value = item.prNumber;
+      currentReview = item;
+      displayReview(item.review);
+      if (item.files) {
+        currentFiles = item.files;
+        displayFiles(item.files);
+      }
+      document.getElementById("chatContainer").classList.remove("hidden");
+    }
+
+    async function clearHistory() {
+      if (!confirm("Are you sure you want to clear all history?")) return;
+
+      await fetch("/api/history", { method: "DELETE" });
+      loadHistory();
+      document.getElementById("reviewResult").classList.add("hidden");
+      document.getElementById("fileChanges").classList.add("hidden");
+      document.getElementById("chatContainer").classList.add("hidden");
+    }
+
+    function clearForm() {
+      document.getElementById("owner").value = "";
+      document.getElementById("repo").value = "";
+      document.getElementById("pr").value = "";
+      document.getElementById("reviewResult").classList.add("hidden");
+      document.getElementById("fileChanges").classList.add("hidden");
+      document.getElementById("chatContainer").classList.add("hidden");
+      currentReview = null;
+      currentFiles = null;
+      chatHistory = [];
+    }
+  </script>
+</body>
+</html>
